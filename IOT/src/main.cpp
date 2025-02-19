@@ -1,5 +1,6 @@
 #include "ECE140_WIFI.h"
 #include "ECE140_MQTT.h"
+#include <Adafruit_BMP085.h>
 
 // MQTT client - using descriptive client ID and topic
 #define CLIENT_ID "esp32-sensors"
@@ -26,15 +27,17 @@ unsigned long lastPublish = 0;
 //     Serial.println();
 // }
 
+Adafruit_BMP085 bmp;
+
 void setup() {
     Serial.begin(115200);
 
     // Connecting to Wifi here:
     Serial.println("[Main] Connecting to Wifi...");
-    wifi.connectToWPAEnterprise(wifiSsid, ucsdUsername, ucsdPassword);
+    // wifi.connectToWPAEnterprise(wifiSsid, ucsdUsername, ucsdPassword);
     
     // *** not UCSD wifi:  ***
-    // wifi.connectToWifi(wifiSsid, nonEnterpriseWifiPassword);
+    wifi.connectToWiFi(wifiSsid, nonEnterpriseWifiPassword);
 
     // To connect to the MQTT :
     Serial.println("Connecting to MQTT broker...");
@@ -49,6 +52,12 @@ void setup() {
     // else{
     //     Serial.println("Failed to connect to MQTT broker");
     // }
+
+    //TA6 pt3: checking for bmp sensor
+    if (!bmp.begin()) {
+        Serial.println("Could not find a valid BMP180 sensor, check wiring!");
+        while (1) {}
+    }
 }
 
 void loop(){
@@ -61,19 +70,39 @@ void loop(){
     // temp sensor 
     float temperature = temperatureRead();
 
-    String message = "{\"hall_sensor\": " + String(hallValue) + ", \"temperature\": " + String(temperature) + "}";
+    //temperature from bmp
+    float temperatureBMP = bmp.readTemperature();
 
+    //pressure from bmp
+    int pressureBMP = bmp.readPressure();
+
+    // String message = "{\"hall_sensor\": " + String(hallValue) + ", \"temperature\": " + String(temperature) + "}";
+    String bmp_message = "{\"temperature_bmp\": " + String(temperatureBMP) + ", \"pressure_bmp\": " + String(pressureBMP) + "}";
+
+    //lab 6
     // Serial.println("\n== Sensor Readings ===");
     // Serial.print("Hall Sensor: ");
     // Serial.println(hallValue);
     // Serial.print("Temperature: ");
     // Serial.print(temperature);
     // Serial.println("C");
-    // Serial.println("==============");            
+    // Serial.println("==============");
     
-    Serial.println("Publishing Sensor Data...");
-    Serial.println(message);
-    mqtt.publishMessage("readings", message);
+    Serial.print("Temperature = ");
+    Serial.print(temperatureBMP);
+    Serial.println(" *C");
+    
+    Serial.print("Pressure = ");
+    Serial.print(pressureBMP);
+    Serial.println(" Pa");
+    
+    // Serial.println("Publishing Sensor Data...");
+    // Serial.println(message);
+    // mqtt.publishMessage("readings", message);
+
+    Serial.println("Publishing BMP Sensor Data...");
+    Serial.println(bmp_message);
+    mqtt.publishMessage("readings", bmp_message);
     
     delay(2000); // Waiting 2 seconds before next reading 
 }
