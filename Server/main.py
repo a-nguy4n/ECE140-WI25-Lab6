@@ -1,11 +1,15 @@
 import paho.mqtt.client as mqtt
 import json
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # MQTT Broker settings
 BROKER = "broker.hivemq.com"
 PORT = 1883
-BASE_TOPIC = "alli/ece140/sensors"
+BASE_TOPIC = os.getenv("BASE_TOPIC")
 TOPIC = BASE_TOPIC + "/#"
 
 # if BASE_TOPIC == "alli/ece140/sensors":
