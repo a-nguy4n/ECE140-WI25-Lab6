@@ -1,16 +1,21 @@
 import paho.mqtt.client as mqtt
 import json
 from datetime import datetime
-import os
+import time
+import requests
 from dotenv import load_dotenv
+import os
 
-load_dotenv()
+load_dotenv(dotenv_path="../IOT/.env")
 
 # MQTT Broker settings
 BROKER = "broker.hivemq.com"
 PORT = 1883
-BASE_TOPIC = os.getenv("BASE_TOPIC")
-TOPIC = BASE_TOPIC + "/#"
+BASE_TOPIC = os.getenv("TOPIC_PREFIX")
+# BASE_TOPIC = "alli/ece140/sensors"
+# TOPIC = BASE_TOPIC + "/#"
+TOPIC = f"{BASE_TOPIC}/#"
+
 
 # if BASE_TOPIC == "alli/ece140/sensors":
 #     print("Please enter a unique topic for your server")
@@ -26,8 +31,11 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f"Failed to connect with result code {rc}")
 
+API_ENDPOINT_URL = "http://0.0.0.0:8000/api/temperature"
+prev_request_time = 0
 def on_message(client, userdata, msg):
     """Callback for when a message is received."""
+    global prev_request_time
     try:
         # Parse JSON message
         payload = json.loads(msg.payload.decode())
@@ -37,11 +45,38 @@ def on_message(client, userdata, msg):
         # if it is, print the payload
         # print(payload)
         if msg.topic == (BASE_TOPIC + "/readings"):
-            print("Payload: " , payload)
+            # print("Payload: " , payload)
+
+            # EXTRACTION
+            temperature = payload.get("temperature")
+            unit = "Celsius"
+            curr_time = current_time.isoformat()
+            timestamp = curr_time.replace("T", " ")
+            
+            # CHECKER:
+            if temperature is not None:
+                if time.time() - prev_request_time >= 5 :
+                    data = {
+                        "value": temperature,
+                        "unit": unit,
+                        "timestamp": timestamp
+                    }
+
+                    response = requests.post(API_ENDPOINT_URL, json=data)
+
+                    if response.status_code == 200:
+                        print("SUCCESSFUL: Data sent", data)
+                    else:
+                        print("FAILURE: Cannot send data", response.text)
+                
+                prev_request_time = time.time()
+                
         
     except json.JSONDecodeError:
         print(f"\nReceived non-JSON message on {msg.topic}:")
         print(f"Payload: {msg.payload.decode()}")
+
+
 
 
 def main():
